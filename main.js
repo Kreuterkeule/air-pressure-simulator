@@ -175,8 +175,7 @@ class Shape {
         return { x: closestPoint.x, y: closestPoint.y};
     }
 
-    // Check if the dot is within 20px of the shape
-    isInRange(dot, range = 60) {
+    isInRange(dot, range = 300) {
         const nearestPoint = this.nearestBoundaryPoint(dot);
         const dx = dot.x - nearestPoint.x;
         const dy = dot.y - nearestPoint.y;
@@ -288,10 +287,11 @@ class Dot {
             if (shape.isInRange(this)) {
                 // Calculate the nearest boundary point
                 const nearestPoint = shape.nearestBoundaryPoint(this);
-                ctx.beginPath();
-                ctx.arc(nearestPoint.x, nearestPoint.y, this.radius, 0, 2 * Math.PI);
-                ctx.fillStyle = 'green';
-                ctx.fill();
+                // very usefull to debug shape collision
+                // ctx.beginPath();
+                // ctx.arc(nearestPoint.x, nearestPoint.y, this.radius, 0, 2 * Math.PI);
+                // ctx.fillStyle = 'green';
+                // ctx.fill();
                 const dx = this.x - nearestPoint.x;
                 const dy = this.y - nearestPoint.y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
@@ -313,78 +313,76 @@ class Dot {
 
 
 
-        // Get the canvas element and its context
-        const canvas = document.getElementById('myCanvas');
-        const ctx = canvas.getContext('2d');
+// Get the canvas element and its context
+const canvas = document.getElementById('myCanvas');
+const ctx = canvas.getContext('2d');
 
-        // Create an array to hold 200 dots
-        const dots = [];
-        
-        // Initialize 200 dots with random starting positions
-        for (let i = 0; i < 200; i++) {
-            const x = Math.random() * canvas.width;  // Random x position within the canvas width
-            const y = Math.random() * canvas.height; // Random y position within the canvas height
-            dots.push(new Dot(x, y));
+// Create an array to hold 200 dots
+const dots = [];
+
+// Initialize 200 dots with random starting positions
+for (let i = 0; i < 200; i++) {
+    const x = Math.random() * canvas.width;  // Random x position within the canvas width
+    const y = Math.random() * canvas.height; // Random y position within the canvas height
+    dots.push(new Dot(x, y));
+}
+
+// Create a list of custom shapes (rectangles with rotation)
+const shapes = [
+    new Shape(300, 160, 550, 20, -(Math.PI / 4)),
+    new Shape(300, 640, 550, 20, Math.PI / 4)
+];
+
+const oscillatingShape = new Shape(900, 0, 20, 1000, 0, true, 100, 0.05); // Oscillates along x-axis
+oscillatingShape.originalX = oscillatingShape.x; // Store original x position
+shapes.push(oscillatingShape);
+
+function animate() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    for (let shape of shapes) {
+        if (shape.oscillating) {
+            shape.updateOscillation(); // Update the shape's position if oscillating
+        }
+        shape.draw(ctx);
+    }
+
+    // Loop through each dot to calculate and apply forces from neighbors
+    for (let i = 0; i < dots.length; i++) {
+        const dot = dots[i];
+
+        // Loop through all other dots and calculate the force between them
+        for (let j = 0; j < dots.length; j++) {
+            if (i !== j) { // Don't calculate force with itself
+                const otherDot = dots[j];
+                const { forceX, forceY } = dot.calculateForce(otherDot, shapes);
+
+                // Apply the calculated force to the dot
+                dot.applyForce(forceX, forceY);
+            }
         }
 
-        // Create a list of custom shapes (rectangles with rotation)
-        const shapes = [
-            new Shape(300, 160, 550, 20, -(Math.PI / 4)),   // Example shape 1 (rotated 30 degrees)
-            new Shape(300, 640, 550, 20, Math.PI / 4)   // Example shape 2 (rotated 45 degrees)
-        ];
+        // Check collision with each shape and apply a force similar to boundary force
+        dot.applyShapeCollisionForce(shapes, ctx);
 
-        const oscillatingShape = new Shape(900, 0, 20, 1000, 0, true, 100, 0.05); // Oscillates along x-axis
-        oscillatingShape.originalX = oscillatingShape.x; // Store original x position
-        shapes.push(oscillatingShape);
+        // Apply boundary force to keep the dot inside the canvas
+        dot.applyBoundaryForce(canvas.width, canvas.height);
 
-        // Function to animate the simulation
-        function animate() {
-            // Clear the canvas on each frame
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // Update the dot's state
+        dot.update();
 
-            for (let shape of shapes) {
-                if (shape.oscillating) {
-                    shape.updateOscillation(); // Update the shape's position if oscillating
-                }
-                shape.draw(ctx);
-            }
+        // Draw the dot on the canvas
+        dot.draw(ctx);
+    }
 
-            // Loop through each dot to calculate and apply forces from neighbors
-            for (let i = 0; i < dots.length; i++) {
-                const dot = dots[i];
+    // Draw all shapes on the canvas
+    for (let shape of shapes) {
+        shape.draw(ctx);
+    }
 
-                // Loop through all other dots and calculate the force between them
-                for (let j = 0; j < dots.length; j++) {
-                    if (i !== j) { // Don't calculate force with itself
-                        const otherDot = dots[j];
-                        const { forceX, forceY } = dot.calculateForce(otherDot, shapes);
+    // Repeat the animation
+    requestAnimationFrame(animate);
+}
 
-                        // Apply the calculated force to the dot
-                        dot.applyForce(forceX, forceY);
-                    }
-                }
-
-                // Check collision with each shape and apply a force similar to boundary force
-                dot.applyShapeCollisionForce(shapes, ctx);
-
-                // Apply boundary force to keep the dot inside the canvas
-                dot.applyBoundaryForce(canvas.width, canvas.height);
-
-                // Update the dot's state
-                dot.update();
-
-                // Draw the dot on the canvas
-                dot.draw(ctx);
-            }
-
-            // Draw all shapes on the canvas
-            for (let shape of shapes) {
-                shape.draw(ctx);
-            }
-
-            // Repeat the animation
-            requestAnimationFrame(animate);
-        }
-
-        // Start the animation
-        animate();
+// Start the animation
+animate();
